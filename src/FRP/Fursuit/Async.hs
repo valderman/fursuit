@@ -2,6 +2,7 @@ module FRP.Fursuit.Async where
 import Control.Applicative
 import FRP.Fursuit.Signal
 import FRP.Fursuit.Sink
+import FRP.Fursuit.Pipe
 
 -- | Create an asynchronous signal. When the signal is triggered, it should
 --   arrange for a value to written into its obtained pipe at some point in

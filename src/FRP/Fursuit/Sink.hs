@@ -4,6 +4,7 @@
 module FRP.Fursuit.Sink (Sink (..), perform) where
 import Data.IORef
 import FRP.Fursuit.Signal
+import FRP.Fursuit.Pipe
 
 -- | Perform the IO action returned by a signal whenever triggered.
 perform :: Signal (IO ()) -> IO ()

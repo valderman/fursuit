@@ -1,7 +1,6 @@
 {-# LANGUAGE GADTs, BangPatterns, TupleSections #-}
 {-# OPTIONS_GHC -fno-warn-unused-binds #-}
-module FRP.Fursuit.Signal (Signal, Pipe, sink, accumS, filterS, pipe,
-                           emptyPipe, write, new, union) where
+module FRP.Fursuit.Signal (Signal (..), Pipe (..), sink) where
 import Data.IORef
 import System.IO.Unsafe
 import Control.Applicative
@@ -12,6 +11,12 @@ type SinkID = Int
 type Origin = Bool
 type Sig a = IO (Maybe (a, Origin))
 type SinkList = M.IntMap (IO ())
+
+data Pipe a = P {
+    piperef :: IORef (Maybe a),
+    cbref   :: IORef (M.IntMap (IO ())),
+    origref :: IORef Origin
+  }
 
 -- New is implemented as a thin wrapper around unsafePerformIO, to make sure
 -- it's only evaluated once and never outside of sink.
@@ -155,81 +160,9 @@ sink act sig = do
         _ -> do
           return Nothing
 
-data Pipe a = P {
-    piperef :: IORef (Maybe a),
-    cbref   :: IORef (M.IntMap (IO ())),
-    origref :: IORef Origin
-  }
-
 instance Functor Signal where
   fmap f x = pure f <*> x
 
 instance Applicative Signal where
   pure  = Pure
   (<*>) = App
-
--- | Execute the specified IO action to obtain a new signal when registering
---   signals. This is handy when you're creating a signal from an external
---   event for use with a single sink:
--- @
---   clicked <- buttonSig "my_button"
---   sink (_ -> putStrLn "Button clicked!") clicked
---   -- ...can be rewritten as:
---   sink (_ -> putStrLn "Button clicked!") (new $ buttonSig "my_button")
--- @
-new :: IO (Signal a) -> Signal a
-new = New . unsafePerformIO
-
--- | Create a signal that has the value of whichever parent signal fired last.
-union :: Signal a -> Signal a -> Signal a
-union = Union
-
--- | Create a pipe. Writing to a pipe is the only way to manually trigger a
---   signal.
-emptyPipe :: IO (Pipe a, Signal a)
-emptyPipe = do
-  ref <- newIORef Nothing
-  orig <- newIORef False
-  sinks <- newIORef M.empty
-  return (P ref sinks orig, Pipe ref sinks orig)
-
--- | Create a pipe with an initial value.
-pipe :: a -> IO (Pipe a, Signal a)
-pipe !initially = do
-  ps@(P ref _ _, _) <- emptyPipe
-  writeIORef ref (Just initially)
-  return ps
-
--- | Write a value into a pipe. This will cause the pipe's associated signal
---   to fire.
-write :: Pipe a -> a -> IO ()
-write (P value listeners origin) !x = do
-  writeIORef origin True
-  writeIORef value (Just x)
-  readIORef listeners >>= M.foldl' (>>) (return ())
-  writeIORef origin False
-
--- | Behaves pretty much like scanl on signals. Initialize the accumulator with
---   a default value; every time the function signal triggers, apply the
---   function to the accumulator and pass on the result.
-accumS :: a -> Signal (a -> a) -> Signal a
-accumS = Accum
-
--- | Filter out events. filterS pred sig only lets the signal sig through if
---   it fulfills the predicate pred. For example:
--- @
---   (pa, a) <- pipe (0 :: Int)
---   (pb, b) <- pipe (0 :: Int)
---   let plus = (+) <$> filterS (< 10) a <*> b
---   sink (putStrLn . show) plus
---   write pa 20
---   write pb 20
---   write pa 5
--- @
---   The above code will print 20 and 25; writing 20 to pa gets filtered out,
---   as 20 does not fulfull (< 10) so no signal is fired. b isn't so filtered
---   however, so the 20 goes through just fine, and is added to the last good
---   value of a (which is 0 - its initial value). The final 5 does fulfill
---   (< 10), so the signal goes through and we get 25.
-filterS :: (a -> Bool) -> Signal a -> Signal a
-filterS = Filter

@@ -21,6 +21,7 @@ Library
     Other-Modules:
         FRP.Fursuit.Signal
         FRP.Fursuit.Sink
+        FRP.Fursuit.Pipe
     Build-Depends:
         base,
         containers
