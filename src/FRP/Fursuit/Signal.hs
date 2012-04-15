@@ -1,11 +1,12 @@
-{-# LANGUAGE GADTs, BangPatterns #-}
+{-# LANGUAGE GADTs, BangPatterns, TupleSections #-}
 {-# OPTIONS_GHC -fno-warn-unused-binds #-}
 module FRP.Fursuit.Signal (Signal, Pipe, sink, accumS, filterS, pipe,
-                           emptyPipe, write, new) where
+                           emptyPipe, write, new, union) where
 import Data.IORef
 import System.IO.Unsafe
 import Control.Applicative
 import qualified Data.IntMap as M
+import Data.Maybe
 
 type SinkID = Int
 type Origin = Bool
@@ -21,6 +22,7 @@ data Signal a where
   Filter :: (a -> Bool) -> Signal a -> Signal a
   Accum  :: a -> Signal (a -> a) -> Signal a
   New    :: Signal a -> Signal a
+  Union  :: Signal a -> Signal a -> Signal a
 
 {-# NOINLINE sinkIDs #-}
 sinkIDs :: IORef SinkID
@@ -54,6 +56,7 @@ sink act sig = do
     sources (Filter _ s)   = sources s
     sources (Accum _ s)    = sources s
     sources (New s)        = sources s
+    sources (Union a b)    = sources a ++ sources b
     
     -- Compile the signal into an IO action we can trigger whenever one of its
     -- sources gets a signal.
@@ -82,6 +85,32 @@ sink act sig = do
       return (accS ref s')
     compile (New signal) = do
       compile signal
+    compile (Union a b) = do
+      a' <- compile a
+      b' <- compile b
+      -- Prefer to initialize with the value of the left signal.
+      maval <- a'
+      initial <- case maval of
+        Just (x, _) -> return (Just x)
+        _           -> do
+          mbval <- b'
+          case mbval of
+            Just (x, _) -> return (Just x)
+            _           -> return Nothing
+      prev <- newIORef initial
+      return $ uniS a' b' prev
+
+    -- Union of two events.
+    uniS sa sb prevref = do
+      ma <- sa
+      mb <- sb
+      prev <- readIORef prevref
+      case listToMaybe $ filter snd $ catMaybes [ma, mb] of
+        Nothing -> do
+          return $ fmap (, False) prev
+        val -> do
+          writeIORef prevref (fmap fst val)
+          return val
 
     -- Basically ap or <*>, but takes the origin indicator into account.
     appS sf sx = do
@@ -150,6 +179,10 @@ instance Applicative Signal where
 -- @
 new :: IO (Signal a) -> Signal a
 new = New . unsafePerformIO
+
+-- | Create a signal that has the value of whichever parent signal fired last.
+union :: Signal a -> Signal a -> Signal a
+union = Union
 
 -- | Create a pipe. Writing to a pipe is the only way to manually trigger a
 --   signal.
