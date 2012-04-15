@@ -21,6 +21,10 @@ import FRP.Fursuit.Sink
 --   Async is primarily intended as a building block for other more high level
 --   signals, and should be used with extreme care as it permits arbitrary side
 --   effects to happen in the course of propagating a signal.
+--
+--   It's also worth noting that triggering the signal returned by async does
+--   not trigger the setup signal, but will instead use the last value held by
+--   the output signal, if any.
 async :: Signal (Pipe a -> IO ()) -> IO (Signal a)
 async setup = do
   (p,s) <- emptyPipe
