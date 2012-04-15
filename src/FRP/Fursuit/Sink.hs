@@ -14,6 +14,7 @@ perform = sink id
 --   triggered, or Pipe, where p << sig would write the value of sig to p.
 class Sink s a | s -> a where
   (<<) :: s -> Signal a -> IO ()
+infixl 0 <<
 
 instance Sink (Pipe a) a where
   p << s = sink (write p) s
