@@ -4,11 +4,12 @@
 --   by simply slamming a global lock around the write and newSinkID
 --   operations.
 module FRP.Fursuit (module Sink, module Pipe, Signal, sink, new, union, accumS,
-                    filterS) where
+                    filterS, zipS) where
 import FRP.Fursuit.Signal
 import FRP.Fursuit.Pipe as Pipe
 import FRP.Fursuit.Sink as Sink
 import System.IO.Unsafe
+import Control.Applicative
 
 -- | Execute the specified IO action to obtain a new signal when registering
 --   signals. This is handy when you're creating a signal from an external
@@ -50,3 +51,7 @@ accumS = Accum
 --   (< 10), so the signal goes through and we get 25.
 filterS :: (a -> Bool) -> Signal a -> Signal a
 filterS = Filter
+
+-- | Signal equivalent of the list function by the same name.
+zipS :: Signal a -> Signal b -> Signal (a, b)
+zipS a b = (,) <$> a <*> b
