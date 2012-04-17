@@ -87,17 +87,23 @@ zipS a b = (,) <$> a <*> b
 
 -- | Pass through a signal as long as it does not fulfill a predicate. From the
 --   point when it does fulfill that predicate, the signal never propagates
---   again.
-untilS :: Signal Bool -> Signal a -> Signal a
-untilS p sig =
+--   again unless the reset signal fired.
+untilS :: (a -> Bool) -> Signal a -> Signal b -> Signal a
+untilS p sig reset =
   snd <$> filterS fst (zipS propagate sig)
   where
-    propagate = accumS True (const False <$ whenS p sig)
+    propagate = accumS True update
+    update    = (const False <$ filterS p sig) `union` (const True <$ reset)
 
 -- | Don't pass the signal through until it fulfills a predicate. After the
 --   predicate has been fulfilled at least once, always propagate the signal.
-fromS :: Signal Bool -> Signal a -> Signal a
-fromS p sig =
+fromS :: (a -> Bool) -> Signal a -> Signal b -> Signal a
+fromS p sig reset =
   snd <$> filterS fst (zipS propagate sig)
   where
-    propagate = accumS False (const True <$ whenS p sig)
+    propagate = accumS False update
+    update    = (const True <$ filterS p sig) `union` (const False <$ reset)
+
+-- | A signal that never fires.
+never :: Signal a
+never = pure undefined
