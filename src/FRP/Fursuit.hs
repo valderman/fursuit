@@ -4,7 +4,7 @@
 --   by simply slamming a global lock around the write and newSinkID
 --   operations.
 module FRP.Fursuit (module Sink, module Pipe, Signal, sink, new, union, accumS,
-                    filterS, zipS, untilS, fromS) where
+                    filterS, whenS, zipS, untilS, fromS) where
 import FRP.Fursuit.Signal
 import FRP.Fursuit.Pipe as Pipe
 import FRP.Fursuit.Sink as Sink
@@ -51,6 +51,10 @@ accumS = Accum
 --   (< 10), so the signal goes through and we get 25.
 filterS :: (a -> Bool) -> Signal a -> Signal a
 filterS = Filter
+
+-- | Only allow a signal to pass through when the time varying value is true.
+whenS :: Signal Bool -> Signal a -> Signal a
+whenS p s = snd <$> (filterS fst $ zipS p s)
 
 -- | Signal equivalent of the list function by the same name.
 zipS :: Signal a -> Signal b -> Signal (a, b)
