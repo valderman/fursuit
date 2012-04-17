@@ -157,8 +157,10 @@ sink act sig = do
             else do
               lastVal <- readIORef lastRef
               return $ Just (lastVal, False)
-        _ -> do
-          return Nothing
+        Nothing -> do
+          -- Even if upstream can't compute its value, Accum can.
+          lastVal <- readIORef lastRef
+          return $ Just (lastVal, False)
 
 instance Functor Signal where
   fmap f x = pure f <*> x
