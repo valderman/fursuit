@@ -4,7 +4,7 @@
 --   by simply slamming a global lock around the write and newSinkID
 --   operations.
 module FRP.Fursuit (module Sink, module Pipe, Signal, sink, new, union, accumS,
-                    filterS, zipS) where
+                    filterS, zipS, untilS, fromS) where
 import FRP.Fursuit.Signal
 import FRP.Fursuit.Pipe as Pipe
 import FRP.Fursuit.Sink as Sink
@@ -55,3 +55,20 @@ filterS = Filter
 -- | Signal equivalent of the list function by the same name.
 zipS :: Signal a -> Signal b -> Signal (a, b)
 zipS a b = (,) <$> a <*> b
+
+-- | Pass through a signal as long as it does not fulfill a predicate. From the
+--   point when it does fulfill that predicate, the signal never propagates
+--   again.
+untilS :: (a -> Bool) -> Signal a -> Signal a
+untilS p sig =
+  snd <$> filterS fst (zipS propagate sig)
+  where
+    propagate = accumS True (const False <$ filterS p sig)
+
+-- | Don't pass the signal through until it fulfills a predicate. After the
+--   predicate has been fulfilled at least once, always propagate the signal.
+fromS :: (a -> Bool) -> Signal a -> Signal a
+fromS p sig =
+  snd <$> filterS fst (zipS propagate sig)
+  where
+    propagate = accumS False (const True <$ filterS p sig)
