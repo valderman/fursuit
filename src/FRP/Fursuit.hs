@@ -52,6 +52,11 @@ accumS = Accum
 filterS :: (a -> Bool) -> Signal a -> Signal a
 filterS = Filter
 
+{-# RULES
+"filterS/filterS" forall p1 p2 sig.
+  filterS p1 (filterS p2 sig) = filterS (\x -> p1 x && p2 x) sig
+  #-}
+
 -- | Only allow a signal to pass through when the time varying value is true.
 whenS :: Signal Bool -> Signal a -> Signal a
 whenS p s = snd <$> (filterS fst $ zipS p s)
