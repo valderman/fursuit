@@ -105,59 +105,63 @@ sink act sig = do
       prev <- newIORef initial
       return $ uniS a' b' prev
 
-    -- Union of two events.
-    uniS sa sb prevref = do
-      ma <- sa
-      mb <- sb
-      prev <- readIORef prevref
-      case listToMaybe $ filter snd $ catMaybes [ma, mb] of
-        Nothing -> do
-          return $ fmap (, False) prev
-        val -> do
-          writeIORef prevref (fmap fst val)
-          return val
+-- | Union of two events.
+uniS :: Sig a -> Sig a -> IORef (Maybe a) -> Sig a
+uniS sa sb prevref = do
+  ma <- sa
+  mb <- sb
+  prev <- readIORef prevref
+  case listToMaybe $ filter snd $ catMaybes [ma, mb] of
+    Nothing -> do
+      return $ fmap (, False) prev
+    val -> do
+      writeIORef prevref (fmap fst val)
+      return val
 
-    -- Basically ap or <*>, but takes the origin indicator into account.
-    appS sf sx = do
-      mf <- sf
-      mx <- sx
-      return $ do
-        (f, origf) <- mf
-        (x, origx) <- mx
-        return (f x, origf || origx)
+-- | Basically ap or <*>, but takes the origin indicator into account.
+appS :: Sig (a -> b) -> Sig a -> Sig b
+appS sf sx = do
+  mf <- sf
+  mx <- sx
+  return $ do
+    (f, origf) <- mf
+    (x, origx) <- mx
+    return (f x, origf || origx)
 
-    -- filterS, with a memo reference for the last value that passed through.
-    fltS predicate lastGood signal = do
-      msig <- signal
-      case msig of
-        Just (val, orig) -> do
-          if predicate val && orig
-            then do
-              writeIORef lastGood (Just val)
-              return $ Just (val, True)
-            else do
-              mlast <- readIORef lastGood
-              case mlast of
-                Just lastVal -> return $ Just (lastVal, False)
-                _            -> return Nothing
-        _ -> do
-          return Nothing
+-- | filterS, with a memo reference for the last value that passed through.
+fltS :: (a -> Bool) -> IORef (Maybe a) -> Sig a -> Sig a
+fltS predicate lastGood signal = do
+  msig <- signal
+  case msig of
+    Just (val, orig) -> do
+      if predicate val && orig
+        then do
+          writeIORef lastGood (Just val)
+          return $ Just (val, True)
+        else do
+          mlast <- readIORef lastGood
+          case mlast of
+            Just lastVal -> return $ Just (lastVal, False)
+            _            -> return Nothing
+    _ -> do
+      return Nothing
 
-    -- accumS
-    accS lastRef sf = do
-      mf <- sf
-      case mf of
-        Just (f, orig) -> do
-          if orig
-            then do
-              val <- readIORef lastRef
-              let !x = f val
-              writeIORef lastRef x
-              return $ Just (x, True)
-            else do
-              lastVal <- readIORef lastRef
-              return $ Just (lastVal, False)
-        Nothing -> do
+-- | accumS
+accS :: IORef a -> Sig (a -> a) -> Sig a
+accS lastRef sf = do
+  mf <- sf
+  case mf of
+    Just (f, orig) -> do
+      if orig
+        then do
+          val <- readIORef lastRef
+          let !x = f val
+          writeIORef lastRef x
+          return $ Just (x, True)
+        else do
+          lastVal <- readIORef lastRef
+          return $ Just (lastVal, False)
+    Nothing -> do
           -- Even if upstream can't compute its value, Accum can.
           lastVal <- readIORef lastRef
           return $ Just (lastVal, False)
