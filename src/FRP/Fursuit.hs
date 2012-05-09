@@ -4,12 +4,15 @@
 --   by simply slamming a global lock around the write and newSinkID
 --   operations.
 module FRP.Fursuit (module Sink, module Pipe, Signal, sink, new, union, accumS,
-                    filterS, whenS, zipS, untilS, fromS) where
+                    filterS, whenS, zipS, untilS, fromS, stateful, unions,
+                    mapMaybeS) where
 import FRP.Fursuit.Signal
 import FRP.Fursuit.Pipe as Pipe
 import FRP.Fursuit.Sink as Sink
 import System.IO.Unsafe
 import Control.Applicative
+import Data.List (foldl1')
+import Data.Maybe (fromJust, isJust)
 
 -- | Execute the specified IO action to obtain a new signal when registering
 --   signals. This is handy when you're creating a signal from an external
@@ -24,14 +27,26 @@ new :: IO (Signal a) -> Signal a
 new = New . unsafePerformIO
 
 -- | Create a signal that has the value of whichever parent signal fired last.
+--   The union is left biased.
 union :: Signal a -> Signal a -> Signal a
 union = Union
+
+-- | The union of n > 1 signals.
+unions :: [Signal a] -> Signal a
+unions = foldl1' union
 
 -- | Behaves pretty much like scanl on signals. Initialize the accumulator with
 --   a default value; every time the function signal triggers, apply the
 --   function to the accumulator and pass on the result.
 accumS :: a -> Signal (a -> a) -> Signal a
 accumS = Accum
+
+-- | Create a signal that keeps local state but returns another value.
+stateful :: (st, a) -> Signal (st -> (st, a)) -> Signal a
+stateful initial f =
+  snd <$> accumS initial (acc <$> f)
+  where
+    acc fun (st, _) = fun st
 
 -- | Filter out events. filterS pred sig only lets the signal sig through if
 --   it fulfills the predicate pred. For example:
@@ -51,6 +66,11 @@ accumS = Accum
 --   (< 10), so the signal goes through and we get 25.
 filterS :: (a -> Bool) -> Signal a -> Signal a
 filterS = Filter
+
+-- | Combined fmap and filter.
+mapMaybeS :: (a -> Maybe b) -> Signal a -> Signal b
+mapMaybeS f sig =
+  fromJust <$> filterS isJust (f <$> sig)
 
 {-# RULES
 "filterS/filterS" forall p1 p2 sig.
