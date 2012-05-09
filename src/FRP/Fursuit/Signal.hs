@@ -105,7 +105,7 @@ sink act sig = do
       prev <- newIORef initial
       return $ uniS a' b' prev
 
--- | Union of two events.
+-- | Union of two events. Both events are always evaluated.
 uniS :: Sig a -> Sig a -> IORef (Maybe a) -> Sig a
 uniS sa sb prevref = do
   ma <- sa
