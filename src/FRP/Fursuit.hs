@@ -103,7 +103,3 @@ fromS p sig reset =
   where
     propagate = accumS False update
     update    = (const True <$ filterS p sig) `union` (const False <$ reset)
-
--- | A signal that never fires.
-never :: Signal a
-never = pure undefined
