@@ -5,7 +5,7 @@
 --   operations.
 module FRP.Fursuit (module Sink, module Pipe, Signal, sink, new, union, accumS,
                     filterS, whenS, zipS, untilS, fromS, stateful, unions,
-                    mapMaybeS) where
+                    filterMapS) where
 import FRP.Fursuit.Signal
 import FRP.Fursuit.Pipe as Pipe
 import FRP.Fursuit.Sink as Sink
@@ -68,8 +68,8 @@ filterS :: (a -> Bool) -> Signal a -> Signal a
 filterS = Filter
 
 -- | Combined fmap and filter.
-mapMaybeS :: (a -> Maybe b) -> Signal a -> Signal b
-mapMaybeS f sig =
+filterMapS :: (a -> Maybe b) -> Signal a -> Signal b
+filterMapS f sig =
   fromJust <$> filterS isJust (f <$> sig)
 
 {-# RULES
