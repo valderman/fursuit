@@ -1,5 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances,
-             FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
 -- | Various kinds of sinks.
 module FRP.Fursuit.Sink (Sink (..), perform) where
 import Data.IORef
@@ -13,7 +12,7 @@ perform = sink id
 -- | Bind a signal to a value of some type. Examples of instances would be
 --   IORef, where ref << sig would store the value of sig in ref whenever
 --   triggered, or Pipe, where p << sig would write the value of sig to p.
-class Sink s a | s -> a where
+class Sink s a where
   (<<) :: s -> Signal a -> IO ()
 infixl 0 <<
 
