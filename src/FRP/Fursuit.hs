@@ -23,6 +23,7 @@ import Data.Maybe (fromJust, isJust)
 --   -- ...can be rewritten as:
 --   sink (_ -> putStrLn "Button clicked!") (new $ buttonSig "my_button")
 -- @
+{-# NOINLINE new #-}
 new :: IO (Signal a) -> Signal a
 new = New . unsafePerformIO
 
