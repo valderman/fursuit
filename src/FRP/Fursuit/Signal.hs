@@ -83,7 +83,8 @@ sink act sig = do
       lastGood <- case ms of
         Just (initial, _) | predicate initial -> newIORef (Just initial)
         _                                     -> newIORef Nothing
-      return (fltS predicate lastGood s')
+      s'' <- compile s
+      return (fltS predicate lastGood s'')
     compile (Accum initially s) = do
       s' <- compile s
       ref <- newIORef initially
